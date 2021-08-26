@@ -1,0 +1,142 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+   // id 'signing'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
+}
+
+def pom_version = '1.1'
+def pom_artifactId = 'wechat-robot'
+
+group 'com.virjar'
+version pom_version
+
+
+dependencies {
+    compileOnly 'com.virjar:ratel-api:1.3.5'
+    compileOnly 'com.virjar:androidstub:1.2'
+    api 'com.virjar:sekiro-int-api:1.0'
+
+    annotationProcessor 'org.projectlombok:lombok:1.18.2'
+    compileOnly 'org.projectlombok:lombok:1.18.2'
+    api group: 'org.json', name: 'json', version: '20201115'
+
+    implementation 'com.annimon:stream:1.2.1'
+    implementation 'org.smali:dexlib2:2.3.4'
+    implementation 'com.squareup.okhttp3:okhttp:4.2.1'
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allJava
+}
+// 生成 javadoc jar
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+// javadoc 配置，这里是自定义了 java doc 的一些配置
+javadoc {
+    description = "Generates project-level javadoc for use in -javadoc jar"
+
+    options.memberLevel = JavadocMemberLevel.PROTECTED
+    options.author = true
+    options.version = true
+    options.header = project.name
+    options.addStringOption('Xdoclint:none', '-quiet')
+
+    // suppress warnings due to cross-module @see and @link references;
+    // note that global 'api' task does display all warnings.
+    logging.captureStandardError LogLevel.INFO
+    logging.captureStandardOutput LogLevel.INFO // suppress "## warnings" message
+    options.encoding = "UTF-8"  //编码一定要配置否则直接出错
+    options.charSet = 'UTF-8'
+}
+
+/**
+ * 设置int公司的maven账户和密码到maven全局配置,
+ * 全局文件地址为： ～/.gradle/gradle.properties
+ *
+ * 配置项：
+ * INT_MAVEN_USERNAME=因体公司的maven账户
+ * INT_MAVEN_PASSWORD=因体公司的maven密码
+ */
+
+def getRepositoryUsername() {
+    return hasProperty('INT_MAVEN_USERNAME') ? INT_MAVEN_USERNAME : ""
+}
+
+def getRepositoryPassword() {
+    return hasProperty('INT_MAVEN_PASSWORD') ? INT_MAVEN_PASSWORD : ""
+}
+
+
+publishing {
+    publications {
+        // 这一个推送项目名称，mavenJava 相当于是一个 task name
+        mavenJava(MavenPublication) {
+            groupId project.group
+            artifactId pom_artifactId
+            version "${version}"
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+
+
+            pom {
+                name = "WeChatRobot sdk"
+                description = "WeChat robot sdk based on ratel and sekiro"
+                url = "git@git.virjar.com:iinti/wechat-robot.git"
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    // 添加开发者描述，这个id不知道是什么
+                    developer {
+                        id = "weijia.deng"
+                        name = "dengweijia"
+                        email = "virjar@virjar.com"
+                    }
+                }
+                // 添加你的 git 仓库 信息
+                scm {
+                    connection = "scm:git@git.virjar.com:iinti/wechat-robot.git"
+                    developerConnection = "scm:git@git.virjar.com:iinti/wechat-robot.git"
+                    url = "https://git.virjar.com:iinti/wechat-robot"
+                }
+            }
+        }
+    }
+    repositories {
+        // releases 仓库
+        maven {
+            name 'IntReleaseRepository'
+            url 'http://nexus.virjar.com/repository/maven-releases/'
+            credentials {
+                username = getRepositoryUsername()
+                password = getRepositoryPassword()
+            }
+        }
+        // snapshots 仓库
+        maven {
+            name = 'IntSnapshotRepository'
+            url = 'http://nexus.virjar.com/repository/maven-snapshots/'
+            credentials {
+                username = getRepositoryUsername()
+                password = getRepositoryPassword()
+            }
+        }
+    }
+}
+// 签名配置，注意这里的顺序，今天第一次知道 gradle 中的 task 等配置也是有顺序的
+// 必须在 publishing 配置之后
+//signing {
+//    sign publishing.publications.mavenJava
+//}

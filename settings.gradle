@@ -1,0 +1,3 @@
+include ':robot-sdk'
+include ':app'
+rootProject.name = "crack-wechat-robot"
